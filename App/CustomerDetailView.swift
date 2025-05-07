@@ -11,8 +11,8 @@ struct CustomerDetailView: View {
         self.customer = customer
         _orders = FetchRequest<Order>(
             sortDescriptors: [
-                NSSortDescriptor(keyPath: \Order.isFulfilled, ascending: true), // open first
-                NSSortDescriptor(keyPath: \Order.date, ascending: false)        // newest first
+                NSSortDescriptor(keyPath: \Order.isFulfilled, ascending: true),
+                NSSortDescriptor(keyPath: \Order.date, ascending: false)
             ],
             predicate: NSPredicate(format: "customer == %@", customer)
         )
@@ -150,6 +150,7 @@ struct CustomerDetailView: View {
             print("Fehler beim Löschen der Bestellung: \(error.localizedDescription)")
         }
     }
+
 }
 
 #Preview {
@@ -159,3 +160,5 @@ struct CustomerDetailView: View {
     return CustomerDetailView(customer: customer)
         .environment(\.managedObjectContext, context)
 }
+
+

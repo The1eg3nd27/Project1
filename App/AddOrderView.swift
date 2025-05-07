@@ -1,79 +1,81 @@
 import SwiftUI
-
 import UniformTypeIdentifiers
 
 struct AddOrderView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
-    
+
     @ObservedObject var customer: Customer
 
-    @State private var showDocumentPicker = false
-    @State private var selectedPDFData: Data?
     @State private var productName = ""
     @State private var quantity: Int16 = 1
     @State private var date = Date()
+    @State private var selectedPDFData: Data?
+    @State private var showDocumentPicker = false
 
     var body: some View {
-        Form {
-            Section(header: Text("Produktdetails")) {
-                TextField("Produktname", text: $productName)
-                Stepper(value: $quantity, in: 1...100) {
-                    Text("Anzahl: \(quantity)")
+        NavigationStack {
+            Form {
+                Section(header: Text("Produkt")) {
+                    TextField("Produktname", text: $productName)
+                    Stepper(value: $quantity, in: 1...100) {
+                        Text("Anzahl: \(quantity)")
+                    }
+                    DatePicker("Bestelldatum", selection: $date, displayedComponents: .date)
                 }
-                DatePicker("Bestelldatum", selection: $date, displayedComponents: .date)
-            }
 
-            Button(action: addOrder) {
-                Text("Bestellung speichern")
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
-            Section(header: Text("PDF anhängen")) {
-                if selectedPDFData != nil {
-                    Text("PDF hochgeladen ✅")
-                        .foregroundColor(.green)
+                Section(header: Text("PDF anhängen")) {
+                    if selectedPDFData != nil {
+                        Text("PDF hochgeladen ✅")
+                            .foregroundColor(.green)
+                    } else {
+                        Text("Kein PDF ausgewählt")
+                            .foregroundColor(.gray)
+                    }
+
+                    Button("PDF auswählen") {
+                        showDocumentPicker = true
+                    }
                 }
-                Button("PDF auswählen") {
-                    showDocumentPicker = true
+
+                Section {
+                    Button(action: addOrder) {
+                        Label("Bestellung speichern", systemImage: "checkmark")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
                 }
             }
-        }
-        .navigationTitle("Neue Bestellung")
-        .sheet(isPresented: $showDocumentPicker) {
-            DocumentPicker(pdfData: $selectedPDFData)
+            .navigationTitle("Neue Bestellung")
+            .sheet(isPresented: $showDocumentPicker) {
+                DocumentPicker(pdfData: $selectedPDFData)
+            }
         }
     }
 
     private func addOrder() {
-        guard !productName.isEmpty else {
-            print("Produktname fehlt!")
-            return
-        }
-
         let newOrder = Order(context: viewContext)
         newOrder.productName = productName
         newOrder.quantity = quantity
         newOrder.date = date
-        newOrder.customer = customer
-        newOrder.isFulfilled = false
         newOrder.pdfData = selectedPDFData
+        newOrder.isFulfilled = false
+        newOrder.customer = customer  // ✅ Linking to the correct customer
 
         do {
             try viewContext.save()
-            print("Bestellung gespeichert!")
+            print("✅ Bestellung gespeichert!")
+            print("📦 Bestellungen: \((customer.orders as? Set<Order>)?.count ?? 0)")
             dismiss()
         } catch {
-            print("Fehler beim Speichern der Bestellung: \(error.localizedDescription)")
+            print("❌ Fehler beim Speichern der Bestellung: \(error.localizedDescription)")
         }
     }
-
 }
 
 #Preview {
-    // Dummy Customer Preview
     let context = PersistenceController.preview.container.viewContext
-    let customer = Customer(context: context)
-    customer.name = "Testkunde"
-    return AddOrderView(customer: customer)
+    let testCustomer = Customer(context: context)
+    testCustomer.name = "Testkunde"
+    return AddOrderView(customer: testCustomer)
         .environment(\.managedObjectContext, context)
 }

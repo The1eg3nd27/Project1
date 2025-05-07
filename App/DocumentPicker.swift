@@ -10,9 +10,7 @@ struct DocumentPicker: UIViewControllerRepresentable {
         return picker
     }
 
-    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {
-        // Nothing to update
-    }
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -28,10 +26,9 @@ struct DocumentPicker: UIViewControllerRepresentable {
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             if let url = urls.first {
                 do {
-                    let data = try Data(contentsOf: url)
-                    parent.pdfData = data
+                    parent.pdfData = try Data(contentsOf: url)
                 } catch {
-                    print("Fehler beim Laden der PDF: \(error.localizedDescription)")
+                    print("❌ Fehler beim Laden der PDF: \(error.localizedDescription)")
                 }
             }
         }
