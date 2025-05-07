@@ -8,6 +8,8 @@ struct AddCustomerView: View {
     @State private var phone = ""
     @State private var email = ""
     @State private var notes = ""
+    
+
 
     var body: some View {
         Form {

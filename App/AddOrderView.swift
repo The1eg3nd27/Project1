@@ -64,7 +64,7 @@ struct AddOrderView: View {
         do {
             try viewContext.save()
             print("✅ Bestellung gespeichert!")
-            print("📦 Bestellungen: \((customer.orders as? Set<Order>)?.count ?? 0)")
+            print("📦 Total Orders: \((customer.orders as? NSSet)?.count ?? 0)")
             dismiss()
         } catch {
             print("❌ Fehler beim Speichern der Bestellung: \(error.localizedDescription)")

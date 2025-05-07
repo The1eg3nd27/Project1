@@ -6,12 +6,14 @@ struct CustomerDetailView: View {
     var customer: Customer
 
     @FetchRequest private var orders: FetchedResults<Order>
+    
+    @State private var searchText = ""
+
 
     init(customer: Customer) {
         self.customer = customer
         _orders = FetchRequest<Order>(
             sortDescriptors: [
-                NSSortDescriptor(keyPath: \Order.isFulfilled, ascending: true),
                 NSSortDescriptor(keyPath: \Order.date, ascending: false)
             ],
             predicate: NSPredicate(format: "customer == %@", customer)
@@ -20,84 +22,43 @@ struct CustomerDetailView: View {
 
     var body: some View {
         List {
-            // Kontakt section
+            // Kontakt – read-only
             Section(header: Text("Kontakt")) {
-                TextField("Name", text: Binding(
-                    get: { customer.name ?? "" },
-                    set: { newValue in
-                        customer.name = newValue
-                        try? viewContext.save()
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
-
-                TextField("Telefon", text: Binding(
-                    get: { customer.phone ?? "" },
-                    set: { newValue in
-                        customer.phone = newValue
-                        try? viewContext.save()
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
-
-                TextField("E-Mail", text: Binding(
-                    get: { customer.email ?? "" },
-                    set: { newValue in
-                        customer.email = newValue
-                        try? viewContext.save()
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
+                Text("Name: \(customer.name ?? "-")")
+                Text("Telefon: \(customer.phone ?? "-")")
+                Text("E-Mail: \(customer.email ?? "-")")
             }
 
+            // Notizen – displayed multiline, not editable
             Section(header: Text("Notizen")) {
-                TextField("Notizen", text: Binding(
-                    get: { customer.notes ?? "" },
-                    set: { newValue in
-                        customer.notes = newValue
-                        try? viewContext.save()
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
+                Text(customer.notes ?? "-")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
             }
 
-            // Open Orders Section
+            // Open Orders
             Section(header: Text("Offene Bestellungen")) {
-                let openOrders = orders.filter { !$0.isFulfilled }
-
-                if openOrders.isEmpty {
-                    Text("Keine offenen Bestellungen")
-                        .foregroundColor(.gray)
-                } else {
-                    ForEach(openOrders) { order in
-                        NavigationLink(destination: OrderDetailView(order: order)) {
-                            orderRow(order: order)
-                        }
+                ForEach(orders.filter { !$0.isFulfilled && isMatching($0) }) { order in
+                    NavigationLink(destination: OrderDetailView(order: order)) {
+                        orderRow(order: order)
                     }
-
-                    .onDelete { offsets in
-                        deleteOrders(offsets: offsets, from: openOrders)
-                    }
+                }
+                .onDelete { offsets in
+                    deleteFulfilled(false, at: offsets)
                 }
             }
 
-            // Fulfilled Orders Section
+
+            // Fulfilled Orders
             Section(header: Text("Erledigte Bestellungen")) {
-                let fulfilledOrders = orders.filter { $0.isFulfilled }
-
-                if fulfilledOrders.isEmpty {
-                    Text("Keine erledigten Bestellungen")
-                        .foregroundColor(.gray)
-                } else {
-                    ForEach(fulfilledOrders) { order in
-                        NavigationLink(destination: OrderDetailView(order: order)) {
-                            orderRow(order: order)
-                        }
+                ForEach(orders.filter { $0.isFulfilled && isMatching($0) }) { order in
+                    NavigationLink(destination: OrderDetailView(order: order)) {
+                        orderRow(order: order)
                     }
+                }
 
-                    .onDelete { offsets in
-                        deleteOrders(offsets: offsets, from: fulfilledOrders)
-                    }
+                .onDelete { offsets in
+                    deleteFulfilled(true, at: offsets)
                 }
             }
         }
@@ -114,8 +75,11 @@ struct CustomerDetailView: View {
                 }
             }
         }
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Suche nach Produkt...")
+
     }
 
+    // MARK: - Order Row View
     @ViewBuilder
     private func orderRow(order: Order) -> some View {
         VStack(alignment: .leading) {
@@ -137,18 +101,21 @@ struct CustomerDetailView: View {
         .padding(.vertical, 4)
     }
 
-
-    private func deleteOrders(offsets: IndexSet, from list: [Order]) {
+    // MARK: - Delete Orders
+    private func deleteFulfilled(_ isFulfilled: Bool, at offsets: IndexSet) {
+        let filtered = orders.filter { $0.isFulfilled == isFulfilled }
         for index in offsets {
-            let order = list[index]
-            viewContext.delete(order)
+            viewContext.delete(filtered[index])
         }
-
         do {
             try viewContext.save()
         } catch {
             print("Fehler beim Löschen der Bestellung: \(error.localizedDescription)")
         }
+    }
+    private func isMatching(_ order: Order) -> Bool {
+        guard !searchText.isEmpty else { return true }
+        return order.productName?.localizedCaseInsensitiveContains(searchText) ?? false
     }
 
 }
@@ -157,8 +124,12 @@ struct CustomerDetailView: View {
     let context = PersistenceController.preview.container.viewContext
     let customer = Customer(context: context)
     customer.name = "Max Mustermann"
-    return CustomerDetailView(customer: customer)
-        .environment(\.managedObjectContext, context)
+    customer.phone = "01234 567890"
+    customer.email = "max@example.com"
+    customer.notes = "Wichtiger Kunde\nMag Sonderrabatte."
+
+    return NavigationStack {
+        CustomerDetailView(customer: customer)
+            .environment(\.managedObjectContext, context)
+    }
 }
-
-
